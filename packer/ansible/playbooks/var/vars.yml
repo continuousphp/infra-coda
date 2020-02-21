@@ -1,0 +1,49 @@
+---
+packages:
+      - git
+      - make
+      - gettext
+      - python
+      - python-pip
+      - awscli
+
+pipinstall:
+      - name: https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+
+files:
+      - dest: /etc/rsyslog.d/
+        src: files/10-coda.conf
+        mode: '0755'
+        group: root
+        owner: root
+      - dest: /etc/logrotate.d/rotate-coda
+        src: files/rotate-coda
+        mode: '0755'
+        group: root
+        owner: root
+      - dest: /etc/init.d/init-ip.sh
+        src: files/init-ip.sh
+        mode: '0755'
+        group: root
+        owner: root
+
+peers:
+      - /dns4/seed-one.genesis-redux.o1test.net/tcp/10002/ipfs/12D3KooWP7fTKbyiUcYJGajQDpCFo2rDexgTHFJTxCH8jvcL1eAH
+      - /dns4/seed-two.genesis-redux.o1test.net/tcp/10002/ipfs/12D3KooWL9ywbiXNfMBqnUKHSB1Q1BaHFNUzppu6JLMVn9TTPFSA
+
+discovery_port: 8003
+external_port: 8002
+
+codeVersion: 0.0.11-beta1+318905-release-0.0.12-beta-63b8a66-PV13ea18ef
+
+aws_cwa_region: "us-east-1"
+aws_cwa_namespace: "AWS/EC2"
+aws_cwa_logfiles:
+  - file_path: '/home/coda/.coda-config/coda*.log'
+    log_group_name: 'cphp/coda/daemon'
+    timestamp_format: '%b %-d %H:%M:%S'
+    timezone: 'LOCAL'
+  - file_path: '/var/log/coda/*'
+    log_group_name: 'cphp/coda/system'
+    timestamp_format: '%b %-d %H:%M:%S'
+    timezone: 'LOCAL'

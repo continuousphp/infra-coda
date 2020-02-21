@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  NotifyEmail:
+    Description: The email to send cloudwatch notification.
+    Type: String
+  AutoScalingGroupName:
+    Type: String
+Resources:
+  TopicNotify:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Coda Notify Alarm
+      Subscription:
+      - Endpoint:
+          Ref: NotifyEmail
+        Protocol: email
+
+  NetworkUtilizationTooHighAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: 'EC2 High Network Utilization'
+      AlarmActions:
+      - Ref: TopicNotify
+      Metrics:
+      - Id: network
+        Label: Network Utilization
+        Expression: "((network_in+network_out)/300/1000/1000/1000*8)/0.75*100"
+        ReturnData: true
+      - Id: network_in
+        ReturnData: true
+        MetricStat:
+          Metric:
+            Namespace: AWS/EC2
+            MetricName: NetworkIn
+          Stat: Sum
+          Period: 300
+        ReturnData: false
+      - Id: network_out
+        ReturnData: true
+        MetricStat:
+          Metric:
+            Namespace: AWS/EC2
+            MetricName: NetworkOut
+          Stat: Sum
+          Period: 300
+        ReturnData: false
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: '1'
+
+  MemoryAlarmHighmemory:
+   Type: AWS::CloudWatch::Alarm
+   Properties:
+     EvaluationPeriods: 1
+     Statistic: Average
+     Threshold: 90
+     AlarmDescription: Go in Alarm is memory is higher than 90% for 60 seconds
+     Period: 60
+     AlarmActions:
+     - Ref: TopicNotify
+     Namespace: CWAgent
+
+     ComparisonOperator: GreaterThanThreshold
+     MetricName: mem_used_percent
+
+  MemoryAlarmHighcpu:
+   Type: AWS::CloudWatch::Alarm
+   Properties:
+     EvaluationPeriods: 1
+     Statistic: Average
+     Threshold: 80
+     AlarmDescription: Cpu usage percent alert + 80%
+     Period: 60
+     AlarmActions:
+     - Ref: TopicNotify
+     Namespace: AWS/EC2
+
+     ComparisonOperator: GreaterThanThreshold
+     MetricName: CPUUtilization
+
+  MemoryAlarmHighdisk:
+   Type: AWS::CloudWatch::Alarm
+   Properties:
+     EvaluationPeriods: 1
+     Statistic: Average
+     Threshold: 80
+     AlarmDescription: disk usage percent alert + 80%
+     Period: 60
+     AlarmActions:
+     - Ref: TopicNotify
+     Namespace: CWAgent
+
+     ComparisonOperator: GreaterThanThreshold
+     MetricName:   disk_used_percent

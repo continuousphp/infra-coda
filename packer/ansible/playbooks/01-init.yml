@@ -1,0 +1,10 @@
+---
+- name: prepare coda install
+  hosts: localhost
+  tasks:
+    - name: create coda user
+      user:
+        name: coda
+        group: root
+        home: /home/coda
+

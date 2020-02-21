@@ -1,0 +1,64 @@
+{
+  "variables": {
+    "env"                 : "{{env `env`}}",
+    "profile"             : "{{env `AWS_PROFILE`}}",
+    "region"              : "{{env `region`}}",
+    "build_instance_type" : "{{env `AWS_INSTANCE_BUILD_TYPE`}}",
+    "source_ami"          : "{{env `AWS_SOURCE_AMI`}}",
+    "distribution"        : "{{env `AWS_DISTRIBUTION`}}",
+    "distribution_user"   : "{{env `AWS_AMI_USER`}}",
+    "vpc_id"              : "{{env `AWS_VPC`}}",
+    "subnet_id"           : "{{env `AWS_BUILD_SUBNET`}}",
+    "playbook_version"    : "dev"
+  },
+  "builders": [{
+    "type"                         : "amazon-ebs",
+    "force_deregister"             : true,
+    "force_delete_snapshot"        : true,
+    "associate_public_ip_address"  : true,
+    "profile"                      : "{{user `profile`}}",
+    "region"                       : "{{user `region`}}",
+    "instance_type"                : "{{user `build_instance_type`}}",
+    "source_ami"                   : "{{user `source_ami`}}",
+    "ssh_username"                 : "{{user `distribution_user`}}",
+    "ami_name"                     : "continuous-coda-{{user `playbook_version`}}",
+    "ami_description"              : "{{user `distribution`}} CodaNode",
+    "subnet_id"                    : "{{user `subnet_id`}}",
+    "user_data_file"               : "{{user `user_data_path`}}",
+    "tags": {
+      "Name"             : "continuous-coda-{{user `env`}}",
+      "playbook_version" : "{{user `playbook_version`}}",
+      "SourceAmi"        : "{{user `source_ami`}}"
+    },
+    "run_tags"                     : {
+      "Name"      : "Packer Builder for CodaProtocol",
+      "playbook_version" : "{{user `playbook_version`}}",
+      "SourceAmi"        : "{{user `source_ami`}}"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-add-repository ppa:ansible/ansible",
+        "sudo apt-get update -yq",
+        "sudo apt-get install -yq ansible"
+      ]
+    },
+    {
+      "type": "ansible-local",
+      "playbook_files": [
+        "./ansible/playbooks/01-init.yml",
+        "./ansible/playbooks/02-default.yml",
+        "./ansible/playbooks/03-coda.yml"
+      ],
+      "playbook_dir": "./ansible/"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo rm /root/.ssh/authorized_keys /home/ubuntu/.ssh/authorized_keys /var/log/lastlog /var/log/wtmp /var/log/btmp"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# coda daemon config options for /etc/default/coda-daemon
+
+# Standard daemon options
+DAEMON_OPTIONS="-external-ip ${MYIP} -discovery-port {{discovery_port}} -external-port {{external_port}} -propose-key /opt/coda/my-wallet -run-snark-worker ${PublicKey}  -snark-worker-fee 1"
+
+# Peers will change with each release
+DAEMON_PEERS="{% for peer in peers%} -peer {{peer}} {% endfor %}"
+SNARK_COORDINATOR='127.0.0.1:8301'
+
+# WARNING: This is insecure.
+CODA_PRIVKEY_PASS=${Password}
+
+# Theads per process
+OMP_NUM_THREADS=6

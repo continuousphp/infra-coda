@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Coda  worker Stack"
+
+Parameters:
+  VpcId:
+    Description: 'VPC identifier.'
+    Type: String
+  CodaAmiId:
+    Description: 'AMI id for instance.'
+    Type: AWS::EC2::Image::Id
+  CodaBucketInfra:
+    Description: Coda Secerts bucket
+    Type: String
+  KeyName:
+    Description: 'The EC2 Key Pair to allow Remote Desktop access or SSH to the instances.'
+    Type: AWS::EC2::KeyPair::KeyName
+  MinSize:
+    Description: 'The Min Size for the AutoScalingGroup.'
+    Type: Number
+    Default: 1
+  MaxSize:
+    Description: 'The Max Size for the AutoScalingGroup.'
+    Type: Number
+    Default: 1
+  InstanceType:
+    Description: "EC2 instance type."
+    ConstraintDescription: 'must be a valid EC2 instance type.'
+    Type: String
+    AllowedValues:
+      - c5.2xlarge
+
+  SecurityGroups:
+    Description: 'Security Group identifiers.'
+    Type: String
+  Subnets:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: 'Vpc Public Subnet list'
+  AvailabilityZones:
+    Description: 'Availability zones to use for autoscaling'
+    Type: 'List<AWS::EC2::AvailabilityZone::Name>'
+
+Conditions:
+  hasSecurityGroups: !Not [ !Equals [ !Ref SecurityGroups, "" ]  ]
+
+Resources:
+  CodaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/application/"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: WriteCloudWatch
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'cloudwatch:PutMetricData'
+                  - 'cloudwatch:GetMetricStatistics'
+                  - 'cloudwatch:ListMetrics'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'ec2:DescribeTags'
+                  - 's3:GetObject'
+                Resource: '*'
+
+  Profile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref CodaRole
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Coda security group"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8001
+          ToPort: 8001
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8002
+          ToPort: 8002
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8003
+          ToPort: 8003
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  LaunchConfig:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      #LaunchTemplateName: !Sub:
+      # - ${stack-version}-codatemplate
+       #- {stack-version: !Select [6, !Split ["-", ${AWS::StackName} ]]}
+      # - {stack-version: !Select [6, !Split ["-", ${AWS::StackName} ]]}
+      LaunchTemplateName: codatemplate-staging
+      LaunchTemplateData:
+        ImageId: !Ref CodaAmiId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        IamInstanceProfile:
+          Arn: !GetAtt Profile.Arn
+        SecurityGroupIds: !If [
+        hasSecurityGroups,
+        !Split [ ',', !Sub "${SecurityGroup},${SecurityGroups}" ],
+        !Split [ ',', !Sub "${SecurityGroup}" ]
+        ]
+        InstanceMarketOptions:
+           MarketType: spot
+
+        BlockDeviceMappings:
+          - DeviceName: "/dev/sda1"
+            Ebs:
+              VolumeSize: 16
+              VolumeType: gp2
+        Monitoring:
+          Enabled: true
+        UserData:
+          "Fn::Base64":
+            !Sub |
+              #!/bin/bash -xe
+              ########################################
+              ## CloudFormation Instances Bootstrap ##
+              ########################################
+
+              aws s3 cp s3://${CodaBucketInfra}/my-wallet.password /opt/coda/my-wallet.password
+              aws s3 cp s3://${CodaBucketInfra}/my-wallet.pub /opt/coda/my-wallet.pub
+              aws s3 cp s3://${CodaBucketInfra}/my-wallet /opt/coda/my-wallet
+
+              chmod -R 700 /opt/coda/
+              chown -R coda:root /opt/coda/
+              /etc/init.d/init-ip.sh
+              systemctl start coda-daemon
+
+###############################
+###############################
+###############################
+###############################
+
+###############################
+###############################
+###############################
+###############################
+###############################
+
+  AutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime : PT5M
+        WaitOnResourceSignals: true
+    Properties:
+      Cooldown: '600'
+      HealthCheckGracePeriod: '300'
+      AvailabilityZones: !Ref AvailabilityZones
+      VPCZoneIdentifier: !Ref Subnets
+      HealthCheckType: EC2
+      LaunchTemplate:
+        #LaunchTemplateName: codatemplate
+        LaunchTemplateName: codatemplate-staging
+        Version: !GetAtt LaunchConfig.LatestVersionNumber
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref MinSize
+      TerminationPolicies:
+        - OldestInstance
+      Tags:
+        -
+          Key: Network
+          Value: Public
+          PropagateAtLaunch: 'true'
+        -
+          Key: Name
+          Value: 'Coda-worker'
+          PropagateAtLaunch: 'true'
+
+Outputs:
+  AutoScalingGroup:
+    Description: 'Auto Scaling Group'
+    Value: !Ref AutoScalingGroup
+  LaunchConfig:
+    Description: 'Launch Configuration'
+    Value: !Ref LaunchConfig

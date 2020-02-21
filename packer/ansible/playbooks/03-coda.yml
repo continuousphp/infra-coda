@@ -1,0 +1,97 @@
+---
+- name: installation des packages et configuration du serveur
+  hosts: localhost
+  vars_files:
+    - var/vars.yml
+  tasks:
+    - name: clean repositories
+      apt:
+        name: coda-testnet-postake-medium-curves
+        state: absent
+    - name: still clean up
+      apt:
+        name: coda-kademlia
+        state: absent
+    - name: add coda repository
+      apt_repository:
+        repo: "deb [trusted=yes] http://packages.o1test.net release main"
+        filename: coda
+        update_cache: yes
+    - name: update repository after coda added
+      apt:
+        name: coda-testnet-postake-medium-curves
+        state: present
+    - name: git clone for coda service
+      git:
+        repo: 'https://github.com/continuousphp/coda-systemd.git'
+        dest: /home/coda/coda-systemd
+      become: yes
+      become_user: coda
+    - name: setup coda startup variables
+      template:
+        src: template/coda-config.j2
+        dest: /home/coda/coda-systemd/coda-config
+        mode: 755
+        owner: coda
+        group: root
+    - name: setup coda worker startup variables
+      template:
+        src: template/coda-config-snark-worker.j2
+        dest: /home/coda/coda-systemd/coda-config-snark-worker
+        mode: 755
+        owner: coda
+        group: root
+    - name: install coda user systemd
+      make:
+        chdir: /home/coda/coda-systemd/
+        target: user
+      become: true
+      become_user: coda
+    - name: install coda user systemd
+      make:
+        chdir: /home/coda/coda-systemd/
+        target: install
+      become: true
+    - name: enable coda service
+      service:
+        name: coda-daemon
+        enabled: yes
+      become: true
+    - name: enable coda workers service
+      service:
+        name: coda-snark-worker@{1..9}
+        enabled: yes
+      become: true
+    - name: prepare agent directory
+      file:
+        path: /opt/aws/amazon-cloudwatch-agent/
+        recurse: yes
+        state: directory
+    - name: setup temp directory for install
+      file:
+        path: /tmp/aws-cw-agent
+        recurse: yes
+        state: directory
+    - name: download installer
+      get_url:
+        url: https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+        dest: /tmp/aws-cw-agent/cw-agent.deb
+    - name: install agent
+      apt:
+        deb: /tmp/aws-cw-agent/cw-agent.deb
+    - name: deploy agent configuration
+      template:
+        src: ./template/amazon-cloudwatch-agent.json.j2
+        dest: "/opt/aws/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json"
+        mode: 0644
+      register: contents
+    - name: debug cloudwatch
+      debug:
+        var: contents
+    - name: start cloudwatch agent
+      shell: |
+        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file://opt/aws/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json -s
+      become: true
+
+
+

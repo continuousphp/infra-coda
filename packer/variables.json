@@ -1,0 +1,5 @@
+{
+  "build_instance_type" : "t2.micro",
+  "distribution"        : "Ubuntu",
+  "distribution_user"   : "ubuntu"
+}

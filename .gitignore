@@ -1,0 +1,6 @@
+.idea
+.env
+knock
+template-output.yml
+.gitlab-ci.yml
+.DS_Store

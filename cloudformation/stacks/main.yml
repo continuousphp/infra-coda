@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Coda infrastructure as code templates
+
+Parameters:
+  NotifyEmail:
+    Description: The email to send cloudwatch notification.
+    Type: String
+  BastionAmiId:
+    Type: String
+  KeyName:
+    Type: String
+  BucketInfra:
+    Description: Infrastructure bucket
+    Type: String
+  # Coda Parameters
+  CodaBucketInfra:
+    Description: Coda Secerts bucket
+    Type: String
+  CodaAmiId:
+    Description: 'AMI id for Coda server.'
+    Type: AWS::EC2::Image::Id
+  CodaInstanceType:
+    Description: "Coda EC2 instance type."
+    ConstraintDescription: 'must be a valid EC2 instance type.'
+    Type: String
+    AllowedValues:
+      - c5.2xlarge
+    Default: "c5.2xlarge"
+  # Coda Parameters
+  CodaWorkerAmiId:
+    Description: 'AMI id for Coda server.'
+    Type: AWS::EC2::Image::Id
+  CodaWorkerMinSize:
+    Description: 'The Min Size for the Coda worker AutoScale group.'
+    Type: Number
+    Default: 1
+  CodaWorkerMaxSize:
+    Description: 'The Max Size for the Coda worker AutoScale group.'
+    Type: Number
+    Default: 1
+  NumberOfAZs:
+    Description: 'The Max NUmber of Subnets (one by AZ)'
+    Type: Number
+    Default: 1
+
+Resources:
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: vpc.yml
+      TimeoutInMinutes: 60
+      Parameters:
+        RegionAzs: !Ref NumberOfAZs
+
+  BastionStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - VpcStack
+    Properties:
+      TemplateURL: bastion.yml
+      TimeoutInMinutes: 30
+      Parameters:
+        Vpc: !GetAtt VpcStack.Outputs.Vpc
+        Subnet: !GetAtt VpcStack.Outputs.PublicSubnet1
+        KeyName: !Ref KeyName
+        AmiId: !Ref BastionAmiId
+
+  AlarmsStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - CodaWorkerStack
+    Properties:
+      TemplateURL: snstopic.yml
+      TimeoutInMinutes: 30
+      Parameters:
+        AutoScalingGroupName: !GetAtt CodaWorkerStack.Outputs.AutoScalingGroup
+        NotifyEmail: !Ref NotifyEmail
+
+  CodaWorkerStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - BastionStack
+      - VpcStack
+    Properties:
+      TemplateURL: auto-scalling-group.yml
+      TimeoutInMinutes: 30
+      Parameters:
+        VpcId: !GetAtt VpcStack.Outputs.Vpc
+        CodaAmiId: !Ref CodaWorkerAmiId
+        CodaBucketInfra: !Ref CodaBucketInfra
+        KeyName: !Ref KeyName
+        MinSize: !Ref CodaWorkerMinSize
+        MaxSize: !Ref CodaWorkerMaxSize
+        InstanceType: !Ref CodaInstanceType
+        SecurityGroups: !GetAtt BastionStack.Outputs.ClientSecurityGroup
+        Subnets: !GetAtt VpcStack.Outputs.PublicSubnets
+        AvailabilityZones: !GetAtt VpcStack.Outputs.AvailabilityZones

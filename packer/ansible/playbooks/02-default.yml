@@ -1,0 +1,25 @@
+---
+- name: installation des packages et configuration du serveur
+  hosts: localhost
+  vars_files:
+    - var/vars.yml
+  tasks:
+    - name: copy of different config files
+      copy:
+        dest: "{{ item.dest }}"
+        src: "{{ item.src }}"
+        mode: "{{ item.mode }}"
+        group: "{{ item.group }}"
+        owner: "{{ item.owner }}"
+      loop: "{{ files }}"
+
+    - name: installation packages
+      apt:
+        name: "{{ item }}"
+        state: latest
+      loop: "{{ packages }}"
+
+    - name:
+      pip:
+        name: "{{ item.name }}"
+      loop: "{{ pipinstall }}"

@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Init AWS Account stack for IaC
+
+
+Resources:
+
+  TemplateBucket:
+    Type: AWS::S3::Bucket
+
+  CloudformationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: cloudformation-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        -
+          PolicyName: cloudformation-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Deny
+                Action:
+                  - 'budgets:*'
+                  - 'aws-portal:*'
+                Resource: '*'
+              -
+                Effect: Allow
+                Action: '*'
+                Resource: '*'
+
+  CloudformationUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: cloudformation
+      Policies:
+        -
+          PolicyName: cloudformation-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - cloudformation:*
+                Resource: '*'
+              -
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt CloudformationRole.Arn
+              -
+                Effect: Allow
+                Action: s3:*
+                Resource:
+                  - !Sub 'arn:aws:s3:::${TemplateBucket}'
+                  - !Sub 'arn:aws:s3:::${TemplateBucket}/*'
+              -
+                Effect: Allow
+                Action:
+                  - iam:GetServiceLinkedRoleDeletionStatus
+                  - iam:CreateServiceLinkedRole
+                  - iam:DeleteServiceLinkedRole
+                  - iam:GetServiceLastAccessedDetails
+                Resource: '*'
+              -
+                Effect: Allow
+                Action:
+                  - ec2:*
+                Resource: '*'
+
+  CloudFormationUserAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      Status: Active
+      UserName: !Ref CloudformationUser
+
+
+Outputs:
+  TemplateBucket:
+    Description: 'Template Bucket'
+    Value: !Ref TemplateBucket
+
+  CloudformationRole:
+    Description: 'Cloudformation Role ARN'
+    Value: !GetAtt CloudformationRole.Arn
+
+  CloudformationAccessKey:
+    Description: 'Cloudformation User Access Key'
+    Value: !Ref CloudFormationUserAccessKey
+
+  CloudformationSecretKey:
+    Description: 'Cloudformation User Secret Key'
+    Value: !GetAtt CloudFormationUserAccessKey.SecretAccessKey

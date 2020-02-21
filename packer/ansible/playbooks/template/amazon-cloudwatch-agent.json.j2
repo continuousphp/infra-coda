@@ -1,0 +1,124 @@
+{ 
+    "agent": {
+        "metrics_collection_interval": 60,
+        "region": "{{aws_cwa_region}}",
+        "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log",
+        "debug": false
+    },
+      "metrics": {
+        "metrics_collected": {
+          "cpu": {
+            "resources": [
+              "*"
+            ],
+            "measurement": [
+              {"name": "cpu_usage_idle", "unit": "Percent"},
+              {"name": "cpu_usage_nice", "unit": "Percent"},
+              "cpu_usage_guest"
+            ],
+            "totalcpu": false,
+            "metrics_collection_interval": 10
+          },
+          "disk": {
+            "resources": [
+              "*"
+            ],
+            "measurement": [
+              {"name": "disk_used_percent" , "unit": "Percent"},
+              {"name": "free", "rename": "disk_free", "unit": "Percent"},
+              {"name": "total", "unit": "Percent"},
+              {"name": "used", "unit": "Percent"}
+            ],
+             "ignore_file_system_types": [
+              "sysfs", "devtmpfs"
+            ],
+            "metrics_collection_interval": 60
+          },
+          "diskio": {
+            "resources": [
+              "*"
+            ],
+            "measurement": [
+              "reads",
+              "writes",
+              "read_time",
+              "write_time",
+              "io_time"
+            ],
+            "metrics_collection_interval": 60
+          },
+          "swap": {
+            "measurement": [
+              {"name": "swap_used", "unit": "Percent"},
+              {"name": "swap_free", "unit": "Percent"},
+              {"name": "swap_used_percent", "unit": "Percent"}
+            ]
+          },
+          "mem": {
+            "measurement": [
+              {"name": "mem_used_percent", "unit": "Percent"},
+              {"name": "mem_used", "unit": "Percent"},
+              {"name": "mem_cached", "unit": "Percent"},
+              {"name": "mem_free", "unit": "Percent"},
+              {"name": "mem_total", "unit": "Percent"}
+            ],
+            "metrics_collection_interval": 1
+          },
+          "net": {
+            "resources": [
+              "eth0"
+            ],
+            "measurement": [
+              "bytes_sent",
+              "bytes_recv",
+              "drop_in",
+              "drop_out"
+            ]
+          },
+          "netstat": {
+            "measurement": [
+              "tcp_established",
+              "tcp_syn_sent",
+              "tcp_close"
+            ],
+            "metrics_collection_interval": 60
+          },
+          "processes": {
+            "measurement": [
+              "running",
+              "sleeping",
+              "dead"
+            ]
+          }
+        },
+        "append_dimensions": {
+          "ImageId": "${aws:ImageId}",
+          "InstanceId": "${aws:InstanceId}",
+          "InstanceType": "${aws:InstanceType}",
+          "AutoScalingGroupName": "${aws:AutoScalingGroupName}"
+        },
+        "aggregation_dimensions" : [["ImageId"], ["InstanceId", "InstanceType"], ["d1"],[]],
+        "force_flush_interval" : 30
+      },
+    {% if aws_cwa_logfiles|length > 0 %}
+        "logs": {
+            "logs_collected": {
+                "files": {
+                    "collect_list": [
+                        {% for logfile in aws_cwa_logfiles %}
+                            {
+                                "file_path": "{{ logfile.file_path }}",
+                                "log_group_name": "{{ logfile.log_group_name }}",
+                                "log_stream_name": "{instance_id}",
+                                "timestamp_format": "{{logfile.timestamp_format}}",
+                                "multi_line_start_pattern": "{timestamp_format}",
+                                "timezone": "{{logfile.timezone}}"
+                            }{%if not loop.last %},{% endif %}
+
+                        {% endfor %}
+                                    ]
+                        }
+        }
+    }
+{% endif %}
+}
