@@ -108,7 +108,12 @@ Resources:
       # - ${stack-version}-codatemplate
        #- {stack-version: !Select [6, !Split ["-", ${AWS::StackName} ]]}
       # - {stack-version: !Select [6, !Split ["-", ${AWS::StackName} ]]}
-      LaunchTemplateName: codatemplate-staging
+      #LaunchTemplateName: codatemplate-staging
+      LaunchTemplateName:
+        Fn::Join:
+          - ''
+          - - "template"
+            - !Ref "AWS::StackName"
       LaunchTemplateData:
         ImageId: !Ref CodaAmiId
         InstanceType: !Ref InstanceType
@@ -176,7 +181,11 @@ Resources:
       HealthCheckType: EC2
       LaunchTemplate:
         #LaunchTemplateName: codatemplate
-        LaunchTemplateName: codatemplate-staging
+        LaunchTemplateName: 
+          Fn::Join:
+            - ''
+            - - "template"
+              - !Ref "AWS::StackName"
         Version: !GetAtt LaunchConfig.LatestVersionNumber
       MinSize: !Ref MinSize
       MaxSize: !Ref MaxSize
