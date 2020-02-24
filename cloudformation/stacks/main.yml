@@ -25,6 +25,7 @@ Parameters:
     ConstraintDescription: 'must be a valid EC2 instance type.'
     Type: String
     AllowedValues:
+      - t3.micro
       - c5.2xlarge
     Default: "c5.2xlarge"
   # Coda Parameters

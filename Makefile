@@ -43,7 +43,6 @@ BastionAmiId?=$(shell ./bin/bastion-ami.sh $(BastionAmiVersion)  $(region) $(AWS
 CodaAmiId?=$(shell ./bin/coda-ami.sh  $(AWS_PROFILE) $(env))
 BUCKET?=init-stack-templatebucket-h0zgfseupync
 CodaInstanceType?=c5.2xlarge
-CodaWorkerInstanceType?=c5.2xlarge
 ## Condtionnal start of the stacks
 RunVpcStack?=true
 RunBastionStack?=true
@@ -98,7 +97,6 @@ deploy: package
 			BastionAmiId=$(BastionAmiId) CodaAmiId=$(CodaAmiId) CodaWorkerAmiId=$(CodaAmiId)\
         	KeyName=$(KeyName) \
         	CodaInstanceType=$(CodaInstanceType) \
-        	CodaWorkerInstanceType=$(CodaWorkerInstanceType) \
         	RunVpcStack=$(RunVpcStack) \
         	RunBastionStack=$(RunBastionStack) \
 			CodaBucketInfra=$(CODA_BUCKET_SECRETS) \
