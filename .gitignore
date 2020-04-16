@@ -2,5 +2,7 @@
 .env
 knock
 template-output.yml
+code-infra-test.pem
 .gitlab-ci.yml
 .DS_Store
+coda-node.pem
