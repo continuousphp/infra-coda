@@ -1,4 +1,7 @@
-### Coda 
+<a href="https://codaprotocol.com">
+	<img width="200" src="./coda-logo@3x.png" alt="Coda Logo" />
+</a>
+<hr/>
 
 <a href="https://codaprotocol.com">Coda</a>, developed by O(1) Labs, is the first cryptocurrency with a succinct blockchain. Unlike Bitcoin a Ethurum, Coda uses <a href="https://www.binance.vision/blockchain/zk-snarks-and-zk-starks-explained"> zk-SNARKs </a>, a zero-knowledge proof, to maintain a constant-sized blockchain. 
 Actually, recursive ZK-snarks takes snapshot of the blockchain satate's and compress it down to a fixed size of around 20kb, small enough to be easily stored on most modern devices, also it uses a methodology to certify computations proving that the blockchain was updated correctly.
